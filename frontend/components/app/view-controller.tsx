@@ -40,7 +40,7 @@ const VIEW_MOTION_PROPS = {
   initial: 'hidden',
   animate: 'visible',
   exit: 'hidden',
-  transition: { duration: 0.4, ease: 'easeInOut' },
+  transition: { duration: 0.4, ease: 'easeInOut' as const },
 };
 
 interface ViewControllerProps {
