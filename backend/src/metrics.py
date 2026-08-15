@@ -250,6 +250,41 @@ class MetricsHandler(BaseHTTPRequestHandler):
                 self._send(500, b'{"error":"clear_failed"}', "application/json")
             return
 
+        if path == "/api/escalations":
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length) if length else b"{}"
+            try:
+                body = json.loads(raw.decode("utf-8") or "{}")
+                import escalation
+
+                issue = str(body.get("issue_description") or "").strip()
+                if not issue:
+                    self._send(
+                        400,
+                        b'{"error":"issue_description_required"}',
+                        "application/json",
+                    )
+                    return
+                res = escalation.create_escalation(
+                    user_id=str(body.get("user_id") or "web_portal_user"),
+                    issue_description=issue,
+                    user_consent=bool(body.get("user_consent", True)),
+                    trigger_type=str(body.get("trigger_type") or "user_requested"),
+                    requester_name=body.get("requester_name"),
+                    contact_hint=body.get("contact_hint"),
+                    urgency=str(body.get("urgency") or "medium"),
+                    preferred_language=body.get("preferred_language") or "en",
+                )
+                self._send(
+                    200,
+                    json.dumps(res).encode("utf-8"),
+                    "application/json; charset=utf-8",
+                )
+            except Exception:
+                logger.exception("web escalation creation failed")
+                self._send(500, b'{"error":"escalation_failed"}', "application/json")
+            return
+
         if path == "/api/manager/approve":
             length = int(self.headers.get("Content-Length") or 0)
             raw = self.rfile.read(length) if length else b"{}"

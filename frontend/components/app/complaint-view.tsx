@@ -9,7 +9,11 @@ interface RecentCall {
   scheme_codes: string[];
 }
 
-export function ComplaintView() {
+interface ComplaintViewProps {
+  onSwitchToTab?: (tab: string) => void;
+}
+
+export function ComplaintView({ onSwitchToTab }: ComplaintViewProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [category, setCategory] = useState('scheme_eligibility');
@@ -20,6 +24,7 @@ export function ComplaintView() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [ticketId, setTicketId] = useState('');
+  const [assignedOfficer, setAssignedOfficer] = useState('');
 
   // Load recent calls to populate dropdown
   useEffect(() => {
@@ -45,7 +50,7 @@ export function ComplaintView() {
     loadCalls();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim() || !description.trim()) {
       alert('Please fill in all required fields.');
@@ -54,37 +59,51 @@ export function ComplaintView() {
 
     setIsSubmitting(true);
 
-    // Simulate network submission
-    setTimeout(() => {
-      const generatedTicket = `JS-2026-${Math.floor(100000 + Math.random() * 900000)}`;
-      setTicketId(generatedTicket);
-      setIsSubmitting(false);
-      setSubmitSuccess(true);
+    try {
+      const triggerType =
+        category === 'banking_fraud'
+          ? 'fraud_suspected'
+          : category === 'scheme_eligibility'
+            ? 'complex_decision'
+            : 'user_requested';
 
-      // Store ticket in local storage so it can be picked up by the escalations tab!
-      try {
-        const stored = localStorage.getItem('jan_sahay_escalations');
-        const tickets = stored ? JSON.parse(stored) : [];
-        tickets.push({
-          ticket_id: generatedTicket,
-          name: name.trim(),
-          phone: phone.trim().slice(0, -4) + 'XXXX', // Mask phone
-          category:
-            category === 'scheme_eligibility'
-              ? 'Scheme Eligibility'
-              : category === 'banking_fraud'
-                ? 'Fraud Report'
-                : 'Service Grievance',
-          call_id: selectedCallId || 'Direct Submission',
-          description: description.trim(),
-          status: 'Assigned to Nodal Officer',
-          date: new Date().toISOString(),
-        });
-        localStorage.setItem('jan_sahay_escalations', JSON.stringify(tickets));
-      } catch (err) {
-        console.error('Failed to save escalation ticket:', err);
+      const categoryLabel =
+        category === 'scheme_eligibility'
+          ? 'Scheme Eligibility'
+          : category === 'banking_fraud'
+            ? 'Fraud Report'
+            : 'Service Grievance';
+
+      const res = await fetch('/api/escalations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: name.trim().toLowerCase().replace(/\s+/g, '_'),
+          requester_name: name.trim(),
+          contact_hint: phone.trim(),
+          issue_description: `${categoryLabel}: ${description.trim()}${selectedCallId ? ` (Associated Call ID: ${selectedCallId})` : ''}`,
+          category: categoryLabel,
+          trigger_type: triggerType,
+          urgency: category === 'banking_fraud' ? 'high' : 'medium',
+          user_consent: true,
+          preferred_language: 'hi',
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const ref = json.reference_id || json.ticket?.reference_id || `ESC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+        setTicketId(ref);
+        setAssignedOfficer(json.ticket?.nodal_officer || 'S. K. Verma (Lead Investigator)');
+        setSubmitSuccess(true);
+      } else {
+        throw new Error('Failed to submit grievance');
       }
-    }, 1200);
+    } catch (err: any) {
+      alert(err.message || 'Error submitting grievance');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResetForm = () => {
@@ -95,6 +114,7 @@ export function ComplaintView() {
     setDescription('');
     setSubmitSuccess(false);
     setTicketId('');
+    setAssignedOfficer('');
   };
 
   return (
@@ -276,19 +296,33 @@ export function ComplaintView() {
                       : 'Service Complaint'}
                 </span>
               </div>
+              {assignedOfficer && (
+                <div className="flex justify-between text-sm text-slate-600">
+                  <span className="font-semibold">Assigned Nodal Officer:</span>
+                  <span className="font-bold text-slate-800">{assignedOfficer}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm text-slate-600">
                 <span className="font-semibold">Estimated Resolution:</span>
                 <span className="font-bold text-amber-600">Within 3-5 Working Days</span>
               </div>
             </div>
 
-            <div className="flex justify-center gap-4">
+            <div className="flex flex-wrap justify-center gap-4">
               <button
                 onClick={handleResetForm}
                 className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
                 File Another Complaint
               </button>
+              {onSwitchToTab && (
+                <button
+                  onClick={() => onSwitchToTab('OPEN_ESCALATIONS')}
+                  className="rounded-xl bg-[#0f4a73] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0c538e]"
+                >
+                  View in Open Escalations &rarr;
+                </button>
+              )}
             </div>
           </div>
         )}

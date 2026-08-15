@@ -17,6 +17,7 @@ import { DashboardView } from './dashboard-view';
 import { EscalationsView } from './escalations-view';
 import { FraudView } from './fraud-view';
 import { ManagerView } from './manager-view';
+import { ProfileView } from './profile-view';
 import { SchemesView } from './schemes-view';
 import { SecurityView } from './security-view';
 
@@ -201,6 +202,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
           {(
             [
               { id: 'HOME', label: 'Home' },
+              { id: 'PROFILES_BANKING', label: '👤 Profiles & Banking' },
               { id: 'SCHEMES_SEARCH', label: 'Schemes Search' },
               { id: 'FRAUD_PREVENTION', label: 'Fraud Prevention' },
               { id: 'COMPLAINT_HELPLINE', label: 'Complaint Helpline' },
@@ -237,6 +239,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
               className="rounded-lg border border-blue-300/25 bg-[#052e4b] px-2.5 py-1.5 font-sans text-xs font-bold text-white uppercase focus:outline-none"
             >
               <option value="HOME">Home</option>
+              <option value="PROFILES_BANKING">👤 Profiles & Banking</option>
               <option value="SCHEMES_SEARCH">Schemes Search</option>
               <option value="FRAUD_PREVENTION">Fraud Prevention</option>
               <option value="COMPLAINT_HELPLINE">Complaint Helpline</option>
@@ -329,6 +332,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
           </>
         ) : (
           <div className="flex-1 overflow-y-auto">
+            {activeTab === 'PROFILES_BANKING' && <ProfileView onSwitchToTab={setActiveTab} />}
             {activeTab === 'CALL_DASHBOARD' && (
               <DashboardView
                 isCallActive={isConnected}
@@ -339,7 +343,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
             )}
             {activeTab === 'SCHEMES_SEARCH' && <SchemesView />}
             {activeTab === 'FRAUD_PREVENTION' && <FraudView />}
-            {activeTab === 'COMPLAINT_HELPLINE' && <ComplaintView />}
+            {activeTab === 'COMPLAINT_HELPLINE' && <ComplaintView onSwitchToTab={setActiveTab} />}
             {activeTab === 'OPEN_ESCALATIONS' && <EscalationsView />}
             {activeTab === 'SECURITY_CENTER' && <SecurityView />}
             {activeTab === 'MANAGER_PORTAL' && <ManagerView />}

@@ -15,7 +15,7 @@ import {
 
 interface ManagerRequest {
   request_id: string;
-  request_type: 'ACCOUNT_ACTIVATION' | 'TRANSACTION_TRANSFER';
+  request_type: 'ACCOUNT_ACTIVATION' | 'TRANSACTION_TRANSFER' | 'OVERDRAFT_REQUEST';
   requester_name: string;
   user_id: string;
   safe_key?: string;

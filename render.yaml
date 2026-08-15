@@ -26,6 +26,11 @@ services:
           type: web
           name: jan-sahay-backend
           property: host
+      - key: BACKEND_HTTP_URL
+        fromService:
+          type: web
+          name: jan-sahay-backend
+          property: host
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -61,3 +66,9 @@ services:
         value: 8082
       - key: PYTHONUNBUFFERED
         value: "1"
+    # Persistent disk so the SQLite databases (caller memory, escalations,
+    # manager approvals, threat events) survive deploys and restarts.
+    - disk:
+        name: agent-data
+        mountPath: /app/data
+        sizeGB: 1

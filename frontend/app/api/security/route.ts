@@ -1,64 +1,72 @@
 import { NextResponse } from 'next/server';
+import { proxyGet, withStatus } from '@/lib/backend';
 
-let inMemorySecurityData = {
+export const dynamic = 'force-dynamic';
+
+const DEFAULT_SECURITY_PAYLOAD = {
   stats: {
-    total_events: 18,
+    total_threat_events: 3,
+    affected_sessions: 2,
+    avg_threat_score: 28,
+    max_threat_score: 65,
+    ban_events: 1,
+    restrict_events: 1,
+    warn_events: 1,
+    monitor_events: 2,
     active_bans: 1,
-    avg_threat_score: 14.2,
-    max_threat_score: 85.0,
-    restricted_sessions_count: 2,
+    signal_distribution: {
+      'Rapid OTP Probing': 1,
+      'Aadhaar Pattern Extraction': 1,
+      'Suspicious Session Jitter': 1,
+    },
   },
   recent_threats: [
     {
-      timestamp: new Date(Date.now() - 4 * 60000).toISOString(),
-      room_id: 'call_room_7a9f1234',
-      threat_score: 85.0,
-      threat_level: 'critical',
-      detected_flags: ['rapid_otp_harvesting', 'prompt_injection_attempt'],
-      action_taken: 'SESSION_TERMINATED_AND_FINGERPRINT_BANNED',
-      session_fingerprint: 'fp_9a8b7c6d5e4f3a2b',
+      event_id: 'EVT-SEC-8921',
+      room_id: 'room_sec_9912',
+      timestamp: new Date(Date.now() - 3600000).toISOString(),
+      threat_score: 65,
+      threat_level: 'restrict',
+      signals: ['Rapid OTP Probing', 'Aggressive Prompt Jitter'],
+      action_taken: 'Session restricted and transferred to Digital Banking Safety Specialist',
+      details: { ip: '203.0.113.88', attempts: 3 },
     },
     {
-      timestamp: new Date(Date.now() - 19 * 60000).toISOString(),
-      room_id: 'call_room_3b2e9811',
-      threat_score: 42.0,
-      threat_level: 'medium',
-      detected_flags: ['unusual_caller_frequency', 'unverified_safe_key_retry'],
-      action_taken: 'ROUTED_TO_DIGITAL_SAFETY_SPECIALIST',
-      session_fingerprint: 'fp_1122334455667788',
+      event_id: 'EVT-SEC-4120',
+      room_id: 'room_sec_3301',
+      timestamp: new Date(Date.now() - 7200000).toISOString(),
+      threat_score: 30,
+      threat_level: 'warn',
+      signals: ['Suspicious Account Number Pattern Extraction'],
+      action_taken: 'Warning issued & PII filter engaged',
+      details: { ip: '198.51.100.14' },
     },
   ],
   active_bans: [
     {
-      fingerprint: 'fp_9a8b7c6d5e4f3a2b',
-      banned_at: new Date(Date.now() - 4 * 60000).toISOString(),
-      expires_at: new Date(Date.now() + 86400000).toISOString(),
-      reason: 'Malicious OTP exploitation probe detected by Strix threat engine',
+      fingerprint: 'fp_ip_203_0_113_45',
+      room_id: 'room_sec_badactor',
+      banned_at: new Date(Date.now() - 86400000).toISOString(),
+      expires_at: new Date(Date.now() + 86400000 * 6).toISOString(),
+      reason: 'Automated brute force attempt on Safe Keys',
+      total_threat_score: 95,
       is_permanent: false,
     },
   ],
   specialist_activity: {
-    digital_safety: 7,
+    digital_safety: 12,
   },
 };
 
 export async function GET(req: Request) {
-  const backendUrl = process.env.BACKEND_HTTP_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
-  if (backendUrl) {
-    try {
-      const url = new URL(req.url);
-      const res = await fetch(`${backendUrl}/api/security?${url.searchParams.toString()}`, {
-        cache: 'no-store',
-        headers: { Accept: 'application/json' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return NextResponse.json(data);
-      }
-    } catch {
-      // fallback
-    }
+  const { searchParams } = new URL(req.url);
+  const qs = searchParams.toString();
+  const data = await proxyGet(`/api/security${qs ? `?${qs}` : ''}`);
+  if (data) {
+    return NextResponse.json(withStatus(data));
   }
-
-  return NextResponse.json(inMemorySecurityData);
+  return NextResponse.json({
+    ...DEFAULT_SECURITY_PAYLOAD,
+    backend_online: false,
+  });
 }
