@@ -1,251 +1,170 @@
-# Jan Sahay — Finance Voice Agent (Day 5)
+# Jan Sahay (जन सहाय) — Enterprise Voice AI Agent for Bharat (Day 10)
 
-**जन सहाय** is a bilingual voice AI companion for **financial literacy in India**. It explains government schemes (PMJDY, PMSBY, PMJJBY, APY), checks **scheme eligibility** from answers you give, returns a **document checklist**, and covers digital payments (UPI) and banking safety — with hard guardrails so it never asks for OTP/PIN/account numbers or promises scheme approval.
+**Jan Sahay (जन सहाय)** is a production-grade, bilingual voice AI companion for **financial literacy, government scheme navigation, fraud protection, and citizen support in India**. Powered by **Murf Falcon TTS** and **LiveKit Agents**, it explains national social welfare schemes (PMJDY, PMSBY, PMJJBY, APY), computes eligibility, generates document checklists, handles real-time human escalations, detects fraud with a custom threat intelligence engine, and provides an enterprise **Bank Manager Approval Portal**.
 
-Built for **#10DaysOfAIVoiceAgents** / **#VoiceForBharat** on top of [Murf Falcon](https://murf.ai) + [LiveKit Agents](https://docs.livekit.io/agents).
+Built for **#10DaysOfAIVoiceAgents** / **#VoiceForBharat** using [Murf Falcon Streaming TTS](https://murf.ai) + [LiveKit Agents](https://docs.livekit.io/agents).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Murf Falcon](https://img.shields.io/badge/TTS-Murf%20Falcon-6366F1)](https://murf.ai/api/docs/text-to-speech/streaming)
-[![LiveKit](https://img.shields.io/badge/Transport-LiveKit-002cf2)](https://docs.livekit.io)
+[![Murf Falcon](https://img.shields.io/badge/TTS-Murf%20Falcon%20(Fastest)-6366F1)](https://murf.ai/api/docs/text-to-speech/streaming)
+[![LiveKit](https://img.shields.io/badge/Transport-LiveKit%20WebRTC-002cf2)](https://docs.livekit.io)
+[![Next.js 15](https://img.shields.io/badge/Frontend-Next.js%2015-black)](https://nextjs.org)
 
 ---
 
-## Day 5 goals — The Tools
-
-| Goal | What we shipped |
-| --- | --- |
-| **Function tools** | `check_scheme_eligibility`, `get_document_checklist`, `get_scheme_info` |
-| **Domain data** | Hand-built local dataset for PMJDY / PMSBY / PMJJBY / APY (see [Data source](#data-source-day-5)) |
-| **Tool descriptions** | Careful WHEN / WHEN NOT / FAILURE PATH docstrings so the model fires tools at the right time |
-| **Failure path out loud** | Tools return speakable error payloads; agent must apologise, never invent eligibility |
-| **Data vintage** | Every tool result includes `data_as_of` + `data_source`; agent says the vintage out loud |
-| **Demo** | Ask “Am I eligible for PMSBY? I’m 35 and have a bank account” → tool fires → spoken result |
-
-Also fixed **silent-on-connect**:
-
-| Bug | Cause | Fix |
-| --- | --- | --- |
-| Agent never speaks when call starts | `FIRST_GREETING` was emptied | Restored a **short** Hindi greeting via `session.say(...)` |
-| Agent ignores “Hello” / “Hi” | Noise filter required 2+ words and 6+ chars | Allowlist for short greets (`hi`, `hello`, `namaste`, …) |
+## 📖 Day 10 Journey Blog Post
+Read the complete 10-day engineering retrospective with benchmarks, architecture deep dives, and challenges overcome in [**`BLOG_DAY_10.md`**](./BLOG_DAY_10.md).
 
 ---
 
-## Architecture
+## 🌟 UNLIKE Others: Unique Jan Sahay Features
+
+1. **👔 Bank Manager Approval Portal (`backend/src/manager.py` + `frontend/components/app/manager-view.tsx`)**
+   - AI cannot blindly activate citizen profiles or execute high-risk operations.
+   - Generates structured pending requests (`MR-XXXX`).
+   - Dedicated interactive portal for bank managers to review audit notes and **Approve** / **Reject** requests with resolution logging.
+
+2. **🛡️ Real-Time Multi-Signal Threat Intelligence Engine (`backend/src/threat_engine.py` + `frontend/components/app/security-view.tsx`)**
+   - 13 real-time threat signals (OTP/PIN phishing, identity switching, brute-force lookup, session velocity, abusive language).
+   - Dynamic Honeypot Traps: planted fake triggers that issue instant session bans (Score 100).
+   - Safe Key KYC Authentication with 3-attempt lockouts and identity mismatch protection.
+   - Zero-PII storage: only stores `SHA-256` fingerprints in threat tables.
+
+3. **👥 Multi-Agent Specialist Swarm (`backend/src/specialists.py`)**
+   - Seamless zero-latency handoffs (`session.update_agent`) between:
+     - **Jan Sahay Triage Assistant**
+     - **Government Scheme Specialist**
+     - **Digital Banking Safety Specialist**
+     - **Bank Account Support Specialist**
+   - Preserves complete conversational context without requiring the caller to repeat facts.
+
+4. **🔒 Zero-PII-Leak Escalation & Ticket Pipeline (`backend/src/escalation.py`)**
+   - Automated regex scrubbing for OTPs, PINs, passwords, and 16-digit card numbers.
+   - Generates trackable tickets (`JS-XXXXXXX` / `TKT-XXXX`) with deduplication against active cases.
+
+5. **📊 Sub-600ms Voice Telemetry & Analytics Dashboard (`backend/src/metrics.py` + `frontend/components/app/dashboard-view.tsx`)**
+   - Live HTTP metrics server monitoring call outcomes, turn latencies, Murf Falcon TTFA (~240ms), and STT error rates.
+
+---
+
+## 🏗️ Architecture
 
 ```mermaid
-flowchart LR
-    A[User speaks] -->|audio| B[Deepgram Nova-3 multi]
-    B -->|transcript + lang| C[Language detect]
-    C -->|hi / en lock| D[Gemini LLM]
-    D -->|tool call?| T[Scheme tools]
-    T -->|eligibility / docs / facts| D
-    D -->|reply text| E[Murf Falcon TTS]
-    E -->|hi-IN-anisha or en-IN-anisha| F[LiveKit]
-    F -->|audio + text| G[Browser UI + subtitles]
+flowchart TD
+    subgraph Client ["Browser / Mobile Client (Next.js 15)"]
+        UI["Interactive 8-Tab Dashboard & WebRTC Audio Visualizer"]
+        Mic["Microphone Input (Echo Cancelled)"]
+        Spk["Audio Playback (Murf Falcon Stream)"]
+    end
 
-    style T fill:#0F6E56,stroke:#5DCAA5,color:#fff
-```
+    subgraph LiveKitEngine ["Real-Time Transport (LiveKit WebRTC)"]
+        LK["LiveKit Audio Room & Data Packet Mesh"]
+        VAD["Silero VAD + Multilingual Turn Detector"]
+    end
 
-**Pipeline:** Deepgram STT → Gemini LLM (+ tools) → Murf Falcon TTS, over LiveKit realtime audio.
+    subgraph AgentCore ["Jan Sahay Voice Agent Core (Python / uv)"]
+        STT["Deepgram Nova-3 Multi (Hindi / English / Hinglish)"]
+        Router["Dynamic Agent Router & Language Lock"]
+        
+        subgraph MultiAgentMesh ["Multi-Agent Specialist Swarm"]
+            Primary["Jan Sahay Triage Assistant"]
+            GovSpecialist["Govt Scheme Specialist"]
+            SafetySpecialist["Digital Banking Safety Specialist"]
+            AcctSpecialist["Bank Account Support Specialist"]
+        end
 
----
+        ThreatEngine["🛡️ Real-Time Threat Intelligence Engine"]
+        Tools["Function Tools (Schemes DB / Doc Checklists)"]
+        LLM["NVIDIA Nemotron-3-Nano / Gemini 2.5 Flash"]
+        TTS["Murf Falcon Streaming TTS (hi-IN-anisha / en-IN-anisha)"]
+    end
 
-## Data source (Day 5)
+    subgraph Persistence ["Persistence & Governance"]
+        DB[(SQLite Caller Memory & Safe Keys)]
+        EscQueue[(Escalation Tickets Queue)]
+        MgrQueue[(Manager Approvals Queue)]
+    end
 
-> **Honest disclosure:** There is no free, stable public government API that returns
-> live eligibility for PMJDY / PMSBY / PMJJBY / APY in a form safe for a voice agent.
-> Day 5 therefore uses a **hand-built local dataset** in `backend/src/schemes.py`,
-> compiled from publicly documented scheme parameters.
-
-| Field | Value |
-| --- | --- |
-| **Source type** | Local hand-built dataset (not a live gov API) |
-| **File** | `backend/src/schemes.py` → `SCHEMES` |
-| **Schemes** | PMJDY, PMSBY, PMJJBY, APY |
-| **Vintage** | `DATA_AS_OF = "2025-04 (local hand-built dataset…)"` |
-| **What the agent says** | Always mentions `data_as_of` so the listener knows figures may change |
-
-Premiums, cover amounts, and age bands can change. The agent is instructed to treat
-tool output as **guidance only** and direct callers to the bank branch / CSC / official
-portal for final confirmation.
-
----
-
-## Day 5 tools
-
-### 1. `check_scheme_eligibility`
-
-Collects answers already given (age, bank account, residency, …) and returns:
-
-- `likely_eligible` / `likely_not_eligible` / `need_more_info`
-- `speak_summary` the agent can read out loud
-- `data_as_of` vintage stamp
-- blockers / missing fields
-
-**Example ask:** *“Am I eligible for PMSBY? I am 35 and I have a bank account.”*
-
-### 2. `get_document_checklist`
-
-Returns required + optional documents for a scheme, with a spoken summary.
-
-**Example ask:** *“What documents do I need for Jan Dhan?”* / *“APY ke liye kaun se papers lagenge?”*
-
-### 3. `get_scheme_info`
-
-Structured overview (summary, age band, premium, benefits) with vintage stamp.
-
-**Example ask:** *“Tell me about Atal Pension Yojana.”*
-
-### Failure path
-
-If the dataset lookup fails or the scheme name is unknown, the tool returns
-`ok: false` + a speakable `message`. The system prompt requires the agent to
-**say that out loud** — never go silent, never invent numbers or eligibility.
-
----
-
-## Repo layout
-
-```
-finance_voice_agent/
-├── backend/
-│   └── src/
-│       ├── agent.py      # Voice pipeline, greeting, language, tools
-│       ├── prompt.py     # Jan Sahay SYSTEM_PROMPT + tool rules
-│       ├── schemes.py    # Local scheme dataset + eligibility logic
-│       └── db.py         # Caller memory (Day 4)
-├── frontend/             # Next.js LiveKit Agents UI
-├── start_app.sh
-└── README.md
+    Mic -->|Opus Audio| LK
+    LK --> VAD
+    VAD --> STT
+    STT -->|Live Transcript| ThreatEngine
+    ThreatEngine --> Router
+    Router --> Primary
+    Primary <-->|session.update_agent| GovSpecialist
+    Primary <-->|session.update_agent| SafetySpecialist
+    Primary <-->|session.update_agent| AcctSpecialist
+    MultiAgentMesh --> Tools
+    Tools --> DB
+    Primary --> ThreatEngine
+    ThreatEngine -->|Anomalies / Bans| DB
+    MultiAgentMesh --> LLM
+    LLM -->|Text Stream| TTS
+    TTS -->|PCM Audio Chunks (sub-300ms TTFA)| LK
+    LK --> Spk
+    Primary -.->|Create Request| MgrQueue
+    Primary -.->|Sanitized Ticket| EscQueue
 ```
 
 ---
 
-## Quickstart
+## 🚀 Quickstart
 
-### Prerequisites
-
+### 1. Prerequisites
 - Python **3.10+** and [**uv**](https://docs.astral.sh/uv/)
 - Node.js **18+** and **pnpm**
-- API keys (see below)
-- Optional local [LiveKit server](https://docs.livekit.io/home/self-hosting/local/) **or** [LiveKit Cloud](https://cloud.livekit.io/)
+- API Keys: LiveKit, Murf Falcon, Deepgram, Google AI Studio / NVIDIA Nemotron
 
-### 1. Environment
-
+### 2. Environment Setup
 ```bash
 cp backend/.env.example backend/.env.local
 cp frontend/.env.example frontend/.env.local
 ```
 
-| Variable | Service | Required |
-| --- | --- | --- |
-| `LIVEKIT_URL` | LiveKit Cloud or local `ws://127.0.0.1:7880` | Yes |
-| `LIVEKIT_API_KEY` | LiveKit | Yes |
-| `LIVEKIT_API_SECRET` | LiveKit | Yes |
-| `MURF_API_KEY` | [murf.ai](https://murf.ai/api/dashboard) | Yes |
-| `DEEPGRAM_API_KEY` | [deepgram.com](https://deepgram.com) | Yes |
-| `GOOGLE_API_KEY` | [Google AI Studio](https://aistudio.google.com/) | Yes |
+Required keys in `backend/.env.local`:
+```ini
+LIVEKIT_URL=wss://your-project.livekit.cloud
+LIVEKIT_API_KEY=your_key
+LIVEKIT_API_SECRET=your_secret
+MURF_API_KEY=your_murf_falcon_key
+DEEPGRAM_API_KEY=your_deepgram_key
+GOOGLE_API_KEY=your_gemini_key
+```
 
-### 2. Install & run
-
+### 3. Install & Run
 ```bash
+# Backend setup
 cd backend && uv sync && uv run python src/agent.py download-files
+
+# Frontend setup
 cd ../frontend && pnpm install
 
-# from repo root
+# Start all services (from root)
 ./start_app.sh
-# or: backend `uv run python src/agent.py dev` + frontend `pnpm dev`
 ```
 
-Open **http://localhost:3000** → **Start talking** → allow mic.
-
-### 3. Unit tests (no live APIs needed)
-
-```bash
-cd backend
-uv run pytest tests/test_schemes.py tests/test_db.py -q
-```
+Open **`http://localhost:3000`** in your browser.
 
 ---
 
-## Day 5 demo script
+## 📊 10-Day Milestones Summary
 
-1. **Call connects** → agent greets once as Jan Sahay (short Hindi intro).
-2. **English:** “Am I eligible for PMSBY? I’m 35 and I have a bank account.”
-   → tool `check_scheme_eligibility` → spoken likely-eligible + **data as of …**
-3. **Documents:** “What documents do I need for PMJJBY?”
-   → tool `get_document_checklist` → spoken checklist + vintage.
-4. **Failure / unknown:** “Am I eligible for Super Crypto Pension?”
-   → tool returns unknown scheme → agent lists supported schemes out loud.
-5. **Safety still holds:** OTP / PIN requests refused; no approval promises.
-
----
-
-## Key files
-
-| File | Role |
-| --- | --- |
-| `backend/src/schemes.py` | Local dataset, eligibility engine, document lists, `DATA_AS_OF` |
-| `backend/src/agent.py` | Tools + short greeting + short-greet noise allowlist |
-| `backend/src/prompt.py` | When to call tools, failure path, vintage rules |
-| `backend/src/db.py` | Caller memory (Day 4) |
-| `backend/tests/test_schemes.py` | Eligibility / checklist / tool registration tests |
+| Day | Focus Area | What Was Shipped |
+| :--- | :--- | :--- |
+| **1** | Hello Voice Agent | LiveKit + Deepgram + Murf Falcon + LLM sub-second audio stream |
+| **2** | Persona & Guardrails | Jan Sahay bilingual personality + strict anti-fraud safety guardrails |
+| **3** | Audio Quality & UI | Murf Indian voice tuning, audio volume boost, live avatar visualizer |
+| **4** | Caller Memory | Persistent SQLite caller memory, returning caller recognition, consent rules |
+| **5** | Dynamic Tools | Eligibility calculator & document checklists for PMJDY, PMSBY, PMJJBY, APY |
+| **6** | Flow Optimization | Deterministic save flow (`session.say + StopResponse`) without LLM hallucination |
+| **7** | Escalations | Human escalation queue, automated ticket creation, PII sanitization |
+| **8** | Citizen Portal | Call performance dashboard, latency telemetry, citizen status lookup |
+| **9** | Multi-Agent Swarm | Domain specialist hierarchy & zero-latency stateful handoffs |
+| **10**| Journey & Governance | Bank Manager Approval Portal, Threat Intelligence Engine & retrospective |
 
 ---
 
-## Configuration cheatsheet
-
-| What | Where |
-| --- | --- |
-| Persona / guardrails / tool rules | `backend/src/prompt.py` |
-| Scheme data + eligibility logic | `backend/src/schemes.py` |
-| LLM model stack | `google.LLM(model=...)` fallback in `agent.py` |
-| Hindi voice | `VOICE_HI = "hi-IN-anisha"` |
-| English voice | `VOICE_EN = "en-IN-anisha"` |
-| STT | `deepgram.STT(model="nova-3", language="multi")` |
-| Branding | `frontend/app-config.ts` |
-
----
-
-## Responsible AI (non‑negotiable)
-
-- **Never** ask for OTP, PIN, UPI PIN, password, card, Aadhaar, or account number
-- **Never** invent or share secrets
-- **Never** promise scheme / loan / claim approval (tools say “likely” only)
-- Always state **data vintage** from tools
-- Escalate account-specific tracking to bank branch / official portal / helpline
-
----
-
-## Troubleshooting
-
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| Agent silent when call starts | Old build with empty greeting | Restart agent on this branch; should hear short Namaste intro |
-| “Hello” ignored | Old noise filter | Restart agent — short greets are allowlisted |
-| Stuck on “thinking…” | Gemini **429** free-tier quota | Fallback stack tries next model; wait or enable billing |
-| Tool never fires | Vague ask / no age yet | Ask eligibility with age + bank account explicitly |
-| No agent joins room | Agent not running / env mismatch | Same LiveKit creds on FE + BE; check agent logs |
-
----
-
-## Prior days (summary)
-
-| Day | Focus |
-| --- | --- |
-| 2 | Personality, bilingual replies, safety guardrails, subtitles |
-| 3 | Avatar / louder voice / status UX |
-| 4 | Caller memory across calls (`lookup_caller` / `save_caller_memory`) |
-| **5** | **Scheme tools: eligibility + document checklist + dated local data** |
-
----
-
-## License
-
+## 📜 License
 MIT — see [LICENSE](LICENSE).
 
 ---
-
-**Day 5 complete.** Tools that fetch real domain data, fail out loud, and say when the data is from.
-
-`#10DaysOfAIVoiceAgents` `#MurfFalcon` `#VoiceForBharat` `#Day5`
+**Day 10 complete.** #10DaysOfAIVoiceAgents #VoiceForBharat #MurfFalcon
