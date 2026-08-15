@@ -48,6 +48,8 @@ Read the complete 10-day engineering retrospective with benchmarks, architecture
 
 ## 🏗️ Architecture
 
+![Jan Sahay System Architecture](docs/jan_sahay_architecture.jpg)
+
 ```mermaid
 flowchart TD
     subgraph Client ["Browser / Mobile Client (Next.js 15)"]

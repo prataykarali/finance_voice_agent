@@ -27,6 +27,8 @@ In India, more than 800 million citizens are eligible for critical social securi
 
 Voice AI only feels magical when it responds with natural human conversational speed. If latency exceeds 1 second, conversations feel disjointed. Jan Sahay achieves an average **first-reply voice latency of 520ms** using an integrated streaming pipeline.
 
+![Jan Sahay System Architecture](docs/jan_sahay_architecture.jpg)
+
 ```mermaid
 flowchart TD
     subgraph Client ["Browser / Mobile Client (Next.js 15)"]
