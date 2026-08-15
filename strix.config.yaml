@@ -1,0 +1,69 @@
+# Strix Autonomous AI Security & Penetration Testing Configuration
+# Repository: https://github.com/usestrix/strix.git
+# Project: Jan Sahay (जन सहाय) Voice AI
+
+version: "1.0"
+project_name: "jan-sahay-voice-agent"
+
+targets:
+  - name: "frontend-token-api"
+    url: "http://localhost:3000/api/token"
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+    body: '{"room_config":{"agents":[{"agentName":"my-agent"}]}}'
+    checks:
+      - "rate_limiting"
+      - "dos_burst_resistance"
+      - "security_headers"
+      - "token_manipulation"
+
+  - name: "backend-metrics-api"
+    url: "http://localhost:8082/api/metrics"
+    method: "GET"
+    checks:
+      - "rate_limiting"
+      - "unauthorized_information_disclosure"
+      - "pii_leak_verification"
+
+  - name: "manager-approval-portal"
+    url: "http://localhost:8082/api/manager/requests"
+    method: "GET"
+    checks:
+      - "access_control"
+      - "privilege_escalation"
+      - "audit_integrity"
+
+  - name: "threat-engine-honeypot"
+    url: "http://localhost:8082/api/threats/ban"
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+    body: '{"fingerprint":"test_probe","action":"ban","reason":"automated probe"}'
+    checks:
+      - "threat_scoring_integrity"
+      - "ban_enforcement_ttl"
+
+rules:
+  rate_limit:
+    max_requests_per_minute: 20
+    expected_status_on_exhaustion: 429
+    required_headers:
+      - "Retry-After"
+      - "X-RateLimit-Limit"
+      - "X-RateLimit-Remaining"
+
+  security_headers:
+    required:
+      - name: "X-Content-Type-Options"
+        value: "nosniff"
+      - name: "X-Frame-Options"
+        value: "DENY"
+      - name: "Cache-Control"
+        contains: "no-store"
+
+  pii_sanitization:
+    forbidden_patterns:
+      - '\b(?:otp|pin|password|cvv)\b[:\s=]*\d+'
+      - '\b\d{12}\b' # Aadhaar
+      - '\b\d{16}\b' # 16-digit Card Number

@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  jan-sahay-agent:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jan-sahay-agent
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      - LIVEKIT_URL=${LIVEKIT_URL}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - MURF_API_KEY=${MURF_API_KEY}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - METRICS_HOST=0.0.0.0
+      - METRICS_PORT=8082
+    env_file:
+      - path: ./backend/.env.local
+        required: false
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8082/healthz', timeout=2)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  jan-sahay-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jan-sahay-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - LIVEKIT_URL=${LIVEKIT_URL}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - AGENT_NAME=${AGENT_NAME:-}
+      - METRICS_ORIGIN=http://jan-sahay-agent:8082
+      - NODE_ENV=production
+      - PORT=3000
+    env_file:
+      - path: ./frontend/.env.local
+        required: false
+    depends_on:
+      jan-sahay-agent:
+        condition: service_healthy

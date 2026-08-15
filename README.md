@@ -7,7 +7,9 @@ Built for **#10DaysOfAIVoiceAgents** / **#VoiceForBharat** using [Murf Falcon St
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Murf Falcon](https://img.shields.io/badge/TTS-Murf%20Falcon%20(Fastest)-6366F1)](https://murf.ai/api/docs/text-to-speech/streaming)
 [![LiveKit](https://img.shields.io/badge/Transport-LiveKit%20WebRTC-002cf2)](https://docs.livekit.io)
-[![Next.js 15](https://img.shields.io/badge/Frontend-Next.js%2015-black)](https://nextjs.org)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](./docker-compose.yml)
+[![Render](https://img.shields.io/badge/Deploy%20to-Render-46E3B7?logo=render&logoColor=white)](./RENDER_DEPLOYMENT.md)
+[![Strix Security](https://img.shields.io/badge/Security-Strix%20AI%20Audited-red)](https://github.com/usestrix/strix)
 
 ---
 
@@ -41,7 +43,12 @@ Read the complete 10-day engineering retrospective with benchmarks, architecture
    - Automated regex scrubbing for OTPs, PINs, passwords, and 16-digit card numbers.
    - Generates trackable tickets (`JS-XXXXXXX` / `TKT-XXXX`) with deduplication against active cases.
 
-5. **📊 Sub-600ms Voice Telemetry & Analytics Dashboard (`backend/src/metrics.py` + `frontend/components/app/dashboard-view.tsx`)**
+5. **⚡ IP Rate Limiting & Strix Security Audit Protection (`frontend/app/api/token/route.ts`)**
+   - In-memory sliding window rate limiter (20 token requests/min/IP) returning `HTTP 429 Too Many Requests`.
+   - Security headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store`.
+   - Integrated with [Strix](https://github.com/usestrix/strix.git) for automated AI penetration testing.
+
+6. **📊 Sub-600ms Voice Telemetry & Analytics Dashboard (`backend/src/metrics.py` + `frontend/components/app/dashboard-view.tsx`)**
    - Live HTTP metrics server monitoring call outcomes, turn latencies, Murf Falcon TTFA (~240ms), and STT error rates.
 
 ---
@@ -109,42 +116,51 @@ flowchart TD
 
 ---
 
-## 🚀 Quickstart
+## 🚀 Deployment
 
-### 1. Prerequisites
-- Python **3.10+** and [**uv**](https://docs.astral.sh/uv/)
-- Node.js **18+** and **pnpm**
-- API Keys: LiveKit, Murf Falcon, Deepgram, Google AI Studio / NVIDIA Nemotron
+### Option 1: Deploy to Render with Docker (`render.yaml`)
+Jan Sahay includes a complete [**Render Blueprint**](./render.yaml) for zero-config multi-service deployment.
 
-### 2. Environment Setup
+1. Go to [Render Dashboard](https://dashboard.render.com/) → **New +** → **Blueprint**.
+2. Connect your GitHub repository: `https://github.com/prataykarali/finance_voice_agent`.
+3. Set your production secrets (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `MURF_API_KEY`, `DEEPGRAM_API_KEY`, `GOOGLE_API_KEY`).
+4. Click **Apply**. Render will automatically build the multi-stage Docker containers and deploy both the Web Portal and the Voice Agent Worker!
+
+See [**`RENDER_DEPLOYMENT.md`**](./RENDER_DEPLOYMENT.md) for full instructions.
+
+### Option 2: Run with Docker Compose
 ```bash
+# Clone the repository
+git clone https://github.com/prataykarali/finance_voice_agent.git
+cd finance_voice_agent
+
+# Ensure environment keys are populated in backend/.env.local and frontend/.env.local
 cp backend/.env.example backend/.env.local
 cp frontend/.env.example frontend/.env.local
+
+# Build and start all services with Docker
+docker compose up --build
 ```
-
-Required keys in `backend/.env.local`:
-```ini
-LIVEKIT_URL=wss://your-project.livekit.cloud
-LIVEKIT_API_KEY=your_key
-LIVEKIT_API_SECRET=your_secret
-MURF_API_KEY=your_murf_falcon_key
-DEEPGRAM_API_KEY=your_deepgram_key
-GOOGLE_API_KEY=your_gemini_key
-```
-
-### 3. Install & Run
-```bash
-# Backend setup
-cd backend && uv sync && uv run python src/agent.py download-files
-
-# Frontend setup
-cd ../frontend && pnpm install
-
-# Start all services (from root)
-./start_app.sh
-```
-
 Open **`http://localhost:3000`** in your browser.
+
+---
+
+## 🛡️ Security & Rate Limiting Audit with Strix
+
+Jan Sahay uses [**Strix**](https://github.com/usestrix/strix.git) (`usestrix/strix`) for autonomous AI penetration testing, rate limiting checks, and security auditing.
+
+### Run Automated Security Suite:
+```bash
+./scripts/run_strix_security_check.sh
+```
+
+### Run Strix Autonomous AI Pentest:
+```bash
+git clone https://github.com/usestrix/strix.git /tmp/strix-scanner
+pip install -r /tmp/strix-scanner/requirements.txt
+python -m strix --config strix.config.yaml --target http://localhost:3000
+```
+See [**`STRIX_SECURITY.md`**](./STRIX_SECURITY.md) for the detailed threat models and audit logs.
 
 ---
 
@@ -161,7 +177,7 @@ Open **`http://localhost:3000`** in your browser.
 | **7** | Escalations | Human escalation queue, automated ticket creation, PII sanitization |
 | **8** | Citizen Portal | Call performance dashboard, latency telemetry, citizen status lookup |
 | **9** | Multi-Agent Swarm | Domain specialist hierarchy & zero-latency stateful handoffs |
-| **10**| Journey & Governance | Bank Manager Approval Portal, Threat Intelligence Engine & retrospective |
+| **10**| Journey & Governance | Render Dockerization, Strix AI Security Auditor, Manager Portal & retrospective |
 
 ---
 
@@ -169,4 +185,4 @@ Open **`http://localhost:3000`** in your browser.
 MIT — see [LICENSE](LICENSE).
 
 ---
-**Day 10 complete.** #10DaysOfAIVoiceAgents #VoiceForBharat #MurfFalcon
+**Day 10 complete.** #10DaysOfAIVoiceAgents #VoiceForBharat #MurfFalcon #Render #Docker #Strix

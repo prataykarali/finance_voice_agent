@@ -72,6 +72,11 @@ COPY --from=build --chown=appuser:appuser /app /app
 # This improves security by not running as root
 USER appuser
 
+# Expose the metrics and healthcheck HTTP port
+ENV METRICS_HOST="0.0.0.0"
+ENV METRICS_PORT=8082
+EXPOSE 8082
+
 # Run the AgentServer using UV
 # UV will activate the virtual environment and run the agent.
 # The "start" command tells the AgentServer to connect to LiveKit and begin waiting for jobs.

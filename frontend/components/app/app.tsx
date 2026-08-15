@@ -55,7 +55,7 @@ export function App({ appConfig }: AppProps) {
     });
   }, [appConfig]);
 
-  const session = useSession(tokenSource, {
+  const session = useSession(tokenSource as any, {
     // Local agent process spin-up can take a few seconds after a previous job exits.
     agentConnectTimeoutMilliseconds: 45_000,
     roomOptions: {
@@ -65,7 +65,7 @@ export function App({ appConfig }: AppProps) {
         autoGainControl: true,
       },
     },
-  });
+  } as any);
 
   return (
     <AgentSessionProvider session={session} volume={1}>

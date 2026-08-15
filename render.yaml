@@ -1,0 +1,63 @@
+# Render Blueprint specification for Jan Sahay (जन सहाय) Voice AI
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ── 1. Next.js Frontend Web Service ──────────────────────────────────────
+  - type: web
+    name: jan-sahay-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: starter
+    region: oregon
+    healthCheckPath: /
+    envVars:
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: AGENT_NAME
+        value: my-agent
+        sync: false
+      - key: METRICS_ORIGIN
+        fromService:
+          type: web
+          name: jan-sahay-backend
+          property: host
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+
+  # ── 2. Python LiveKit Voice Agent Worker & Metrics Service ────────────────
+  - type: web
+    name: jan-sahay-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    region: oregon
+    healthCheckPath: /healthz
+    envVars:
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: MURF_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: METRICS_HOST
+        value: 0.0.0.0
+      - key: METRICS_PORT
+        value: 8082
+      - key: PYTHONUNBUFFERED
+        value: "1"

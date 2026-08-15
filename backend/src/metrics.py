@@ -169,6 +169,33 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
 """
 
 
+# Rate limiter for metrics & management endpoints (Strix protection)
+_RATE_LIMIT_WINDOW = 60.0
+_MAX_REQUESTS_PER_WINDOW = 60
+_ip_rate_map: dict[str, list[float]] = {}
+_rate_lock = threading.Lock()
+
+
+def _check_ip_rate_limit(ip: str) -> bool:
+    now = time.time()
+    with _rate_lock:
+        timestamps = _ip_rate_map.get(ip, [])
+        # filter to current window
+        valid = [t for t in timestamps if now - t < _RATE_LIMIT_WINDOW]
+        if len(valid) >= _MAX_REQUESTS_PER_WINDOW:
+            _ip_rate_map[ip] = valid
+            return False
+        valid.append(now)
+        _ip_rate_map[ip] = valid
+        # Periodic pruning
+        if len(_ip_rate_map) > 1000:
+            for k in list(_ip_rate_map.keys()):
+                _ip_rate_map[k] = [t for t in _ip_rate_map[k] if now - t < _RATE_LIMIT_WINDOW]
+                if not _ip_rate_map[k]:
+                    del _ip_rate_map[k]
+        return True
+
+
 class MetricsHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
         logger.info("%s - %s", self.address_string(), fmt % args)
@@ -179,6 +206,9 @@ class MetricsHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-XSS-Protection", "1; mode=block")
         self.end_headers()
         self.wfile.write(body)
 
@@ -189,7 +219,22 @@ class MetricsHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
+    def _client_ip(self) -> str:
+        fwd = self.headers.get("X-Forwarded-For")
+        if fwd:
+            return fwd.split(",")[0].strip()
+        return self.client_address[0] if self.client_address else "127.0.0.1"
+
     def do_POST(self) -> None:
+        client_ip = self._client_ip()
+        if not _check_ip_rate_limit(client_ip):
+            self._send(
+                429,
+                b'{"error":"rate_limit_exceeded","message":"Too many requests. Please slow down."}',
+                "application/json",
+            )
+            return
+
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         if path == "/api/calls/clear":
@@ -323,6 +368,25 @@ class MetricsHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
+
+        # Health checks (unthrottled for Render / Kubernetes / Docker)
+        if path in {"/healthz", "/api/health", "/health"}:
+            self._send(
+                200,
+                b'{"status":"healthy","service":"jan-sahay-voice-agent"}',
+                "application/json",
+            )
+            return
+
+        client_ip = self._client_ip()
+        if not _check_ip_rate_limit(client_ip):
+            self._send(
+                429,
+                b'{"error":"rate_limit_exceeded","message":"Too many requests. Please slow down."}',
+                "application/json",
+            )
+            return
+
         query = parse_qs(parsed.query)
         channel = (query.get("channel") or [None])[0] or None
         since = (query.get("since") or [None])[0] or None

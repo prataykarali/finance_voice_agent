@@ -1,0 +1,52 @@
+name: Strix AI Security & Rate Limiting Audit
+
+on:
+  push:
+    branches: [ main, day-10 ]
+  pull_request:
+    branches: [ main, day-10 ]
+
+jobs:
+  strix-security-audit:
+    name: Strix AI Autonomous Pentest & Rate Limit Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv & Dependencies
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          cd backend
+          uv sync
+
+      - name: Set up Node.js 20 & pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Run Backend Unit & Security Tests
+        run: |
+          cd backend
+          uv run pytest -q
+
+      - name: Run Strix Autonomous Security Check Suite
+        run: |
+          ./scripts/run_strix_security_check.sh
