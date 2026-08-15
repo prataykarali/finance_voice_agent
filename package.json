@@ -3,11 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.20.0",
-  "dependenciesMeta": {
-    "agent-starter-react": {
-      "injected": true
-    }
-  },
   "scripts": {
     "dev": "pnpm --filter agent-starter-react dev",
     "build": "pnpm --filter agent-starter-react build",
