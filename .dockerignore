@@ -1,0 +1,25 @@
+# Root .dockerignore — excludes frontend and unnecessary files from Docker build
+frontend/
+.git
+.github
+.gemini
+.venv
+__pycache__
+*.pyc
+*.pyo
+node_modules
+.next
+.env
+.env.*
+*.md
+LICENSE
+.ruff_cache
+.pytest_cache
+backend/.venv
+backend/.env
+backend/.env.*
+backend/tests
+backend/.pytest_cache
+backend/.ruff_cache
+backend/.git
+backend/.github
