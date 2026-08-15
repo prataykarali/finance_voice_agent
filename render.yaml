@@ -1,49 +1,17 @@
-# Render Blueprint specification for Jan Sahay (जन सहाय) Voice AI
+# Render Blueprint — Jan Sahay Voice Agent Backend (24/7 worker)
+# Frontend is hosted on Vercel, only the Python agent needs Render.
+# Deploy: https://dashboard.render.com → New → Blueprint → connect this repo
 # Docs: https://render.com/docs/blueprint-spec
 
 services:
-  # ── 1. Next.js Frontend Web Service ──────────────────────────────────────
+  # Python LiveKit Voice Agent Worker + Metrics HTTP Server
   - type: web
-    name: jan-sahay-frontend
-    runtime: docker
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
-    plan: starter
-    region: oregon
-    healthCheckPath: /
-    envVars:
-      - key: LIVEKIT_URL
-        sync: false
-      - key: LIVEKIT_API_KEY
-        sync: false
-      - key: LIVEKIT_API_SECRET
-        sync: false
-      - key: AGENT_NAME
-        value: my-agent
-        sync: false
-      - key: METRICS_ORIGIN
-        fromService:
-          type: web
-          name: jan-sahay-backend
-          property: host
-      - key: BACKEND_HTTP_URL
-        fromService:
-          type: web
-          name: jan-sahay-backend
-          property: host
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 3000
-
-  # ── 2. Python LiveKit Voice Agent Worker & Metrics Service ────────────────
-  - type: web
-    name: jan-sahay-backend
+    name: jan-sahay-voice-agent
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: starter
-    region: oregon
+    plan: free
+    region: singapore
     healthCheckPath: /healthz
     envVars:
       - key: LIVEKIT_URL
@@ -63,12 +31,6 @@ services:
       - key: METRICS_HOST
         value: 0.0.0.0
       - key: METRICS_PORT
-        value: 8082
+        value: 10000
       - key: PYTHONUNBUFFERED
         value: "1"
-    # Persistent disk so the SQLite databases (caller memory, escalations,
-    # manager approvals, threat events) survive deploys and restarts.
-    - disk:
-        name: agent-data
-        mountPath: /app/data
-        sizeGB: 1
