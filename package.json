@@ -1,0 +1,10 @@
+{
+  "name": "finance-voice-agent",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter agent-starter-react dev",
+    "build": "pnpm --filter agent-starter-react build",
+    "start": "pnpm --filter agent-starter-react start"
+  }
+}
