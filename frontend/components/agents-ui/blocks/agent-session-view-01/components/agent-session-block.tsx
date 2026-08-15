@@ -295,7 +295,7 @@ export function AgentSessionView_01({
       {/* Bottom */}
       <motion.div
         {...BOTTOM_VIEW_MOTION_PROPS}
-        className="absolute inset-x-3 bottom-0 z-50 md:inset-x-12"
+        className="absolute inset-x-3 bottom-6 z-50 md:inset-x-12 md:bottom-8"
       >
         {/* Pre-connect message */}
         {isPreConnectBufferEnabled && (
@@ -313,7 +313,7 @@ export function AgentSessionView_01({
             )}
           </AnimatePresence>
         )}
-        <div className="bg-background relative mx-auto max-w-2xl pb-3 md:pb-12">
+        <div className="bg-background/95 relative mx-auto max-w-2xl rounded-full pb-1 shadow-2xl backdrop-blur-md md:pb-2">
           <Fade bottom className="absolute inset-x-0 top-0 h-4 -translate-y-full" />
           <AgentControlBar
             variant="livekit"

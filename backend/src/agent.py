@@ -1227,24 +1227,50 @@ _SECURITY_INCIDENT_PHRASES = (
     "lost card",
     "card lost",
     "lost my card",
+    "lost my credit card",
+    "lost my debit card",
+    "lost credit card",
+    "lost debit card",
+    "credit card lost",
+    "debit card lost",
+    "atm card lost",
+    "lost atm card",
     "stolen card",
     "card stolen",
+    "stolen credit card",
+    "stolen debit card",
     "block card",
     "card block",
     "block my card",
+    "block credit card",
+    "block debit card",
     "compromised card",
     "card compromised",
+    "compromised account",
+    "account compromised",
+    "compromised bank account",
+    "compromised my account",
     "unauthorized transaction",
     "unauthorised transaction",
     "unauthorized debit",
     "unauthorised debit",
+    "unauthorized charge",
+    "unauthorised charge",
     "report fraud",
     "fraud report",
-    "account compromised",
     "hacked account",
+    "account hacked",
+    "card hacked",
     "suspicious login",
+    "suspicious transaction",
     "phishing",
     "identity theft",
+    "card kho gaya",
+    "credit card kho gaya",
+    "debit card kho gaya",
+    "atm kho gaya",
+    "paisa kat gaya",
+    "paise kat gaye",
 )
 
 
@@ -1291,10 +1317,14 @@ def _is_general_jan_sahay_turn(text: str) -> bool:
 _FRAUD_ROUTE_RE = re.compile(
     r"\b("
     r"fraud|scam|phishing|compromis(?:e|ed)|hacked?|stolen|unauthori[sz]ed|"
-    r"lost\s+(?:my\s+)?card|card\s+(?:lost|stolen|blocked?)|block\s+(?:my\s+)?card|"
+    r"lost\s+(?:my\s+)?(?:credit|debit|atm|bank\s+)?card|"
+    r"(?:credit|debit|atm)?\s*card\s+(?:lost|stolen|blocked?|compromised)|"
+    r"block\s+(?:my\s+)?(?:credit|debit|atm)?\s*card|"
+    r"compromis(?:e|ed)\s+(?:my\s+)?(?:account|bank|card)|"
+    r"(?:account|bank)\s+(?:compromised|hacked|stolen)|"
     r"report\s+(?:a\s+)?fraud|fraud\s+report|want\s+to\s+report\s+(?:a\s+)?fraud|"
     r"fraud\s+(?:hua|hogaya|ho\s*gaya|ho\s*gya|hogya|kar\s*diya)|"
-    r"report\s+(?:a\s+)?scam|dhokha(?:dhadi)?|jalsaji|chori"
+    r"report\s+(?:a\s+)?scam|dhokha(?:dhadi)?|jalsaji|chori|kho\s*gaya"
     r")\b",
     re.IGNORECASE,
 )
@@ -1510,6 +1540,12 @@ class Assistant(Agent):
     async def _handoff_current_session(self, specialist_id: str, reason: str) -> None:
         """Hand over, keep the specialist active, and answer the latest question."""
         if self._active_specialist_id == specialist_id:
+            if (
+                specialist_id == "digital_safety"
+                and _is_security_incident_text(reason)
+                and not self._last_escalation_ref
+            ):
+                await self._create_security_ticket(reason)
             await self._generate_specialist_reply(specialist_id, reason)
             return
 
@@ -1560,8 +1596,8 @@ class Assistant(Agent):
         extra = ""
         if incident and self._last_escalation_ref:
             extra = (
-                f" A reference ticket {self._last_escalation_ref} was already created. "
-                "Confirm that ID and give short next steps. Do not create another ticket."
+                f" Emergency ticket {self._last_escalation_ref} has been logged. "
+                "Reassure the caller, confirm that their card/account safety steps are initiated, and give short practical guidance."
             )
         try:
             reply = self.session.generate_reply(
@@ -1584,14 +1620,15 @@ class Assistant(Agent):
             result = escalation.create_escalation(
                 user_id=name.lower().replace(" ", "_"),
                 requester_name=name,
-                issue_description=reason,
+                issue_description=f"Security Incident: {reason}",
                 user_consent=True,
                 trigger_type="fraud_suspected",
-                urgency="high",
+                urgency="emergency" if any(w in reason.lower() for w in ("lost", "stolen", "compromised", "hacked", "block", "chori", "kho gaya")) else "high",
                 preferred_language=self._reply_lang,
                 diagnostic_steps=[
-                    "Case collected by Digital Banking Safety Specialist.",
-                    "Security incident reported on the call; reference ticket opened.",
+                    "Emergency security incident reported on live voice call.",
+                    f"Incident details: {reason}",
+                    "Digital Banking Safety Specialist dispatched and ticket opened.",
                 ],
             )
         except Exception as err:
@@ -1604,10 +1641,11 @@ class Assistant(Agent):
         self._last_user_topic = "fraud / unauthorized access"
         if self._call_room_id:
             db.record_escalation(self._call_room_id)
+        ref_id = self._last_escalation_ref
         speak = (
-            result.get("speak_out_loud_en")
+            f"I have immediately opened emergency reference ticket {ref_id} for your safety report. Your card and account security steps are now active."
             if self._reply_lang == "en"
-            else result.get("speak_out_loud_hi")
+            else f"Maine aapki report ke liye emergency reference ticket {ref_id} turant darj kar diya hai. Aapke card aur khate ki suraksha prakriya shuru ho gayi hai."
         )
         if speak:
             try:

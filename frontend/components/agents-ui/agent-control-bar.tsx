@@ -393,7 +393,7 @@ export function AgentControlBar({
             disabled={!isConnected}
             className={cn(
               variant === 'livekit' &&
-                'bg-destructive/10 dark:bg-destructive/10 text-destructive hover:bg-destructive/20 dark:hover:bg-destructive/20 focus:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/4 rounded-full font-mono text-xs font-bold tracking-wider'
+                'bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold shadow-lg shadow-red-950/40 rounded-full font-mono text-xs tracking-wider border border-red-500/30 transition-all px-4 py-2'
             )}
           >
             <span className="hidden md:inline">END CALL</span>
