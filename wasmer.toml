@@ -1,0 +1,19 @@
+[package]
+name = "prataykarali/finance_voice_agent"
+version = "0.1.0"
+description = "Jan Sahay Voice AI Agent Frontend"
+readme = "README.md"
+
+[dependencies]
+"wasmer/static-web-server" = "^2"
+
+[[command]]
+name = "script"
+module = "wasmer/static-web-server:webserver"
+runner = "https://webc.org/runner/wasi"
+
+[command.annotations.wasi]
+env = ["PORT=8080"]
+
+[fs]
+public = "frontend/public"
