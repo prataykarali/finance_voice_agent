@@ -2,6 +2,7 @@
   "name": "finance-voice-agent",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.20.0",
   "dependenciesMeta": {
     "agent-starter-react": {
       "injected": true
