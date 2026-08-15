@@ -1,17 +1,24 @@
 'use client';
 
-import type { ComponentProps, HTMLAttributes, ReactElement } from 'react';
+import type { ComponentProps, HTMLAttributes, ReactElement, ReactNode } from 'react';
 import { createContext, memo, useContext, useEffect, useState } from 'react';
-import type { FileUIPart, UIMessage } from 'ai';
 import { ChevronLeftIcon, ChevronRightIcon, PaperclipIcon, XIcon } from 'lucide-react';
-import { Streamdown } from 'streamdown';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup, ButtonGroupText } from '@/components/ui/button-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/shadcn/utils';
 
+export type UIMessageRole = 'system' | 'user' | 'assistant' | 'data';
+
+export interface FileUIPart {
+  type: 'file';
+  filename?: string;
+  mediaType?: string;
+  url?: string;
+}
+
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
-  from: UIMessage['role'];
+  from: UIMessageRole;
 };
 
 export const Message = ({ className, from, ...props }: MessageProps) => (
@@ -179,12 +186,12 @@ export const MessageBranchContent = ({ children, ...props }: MessageBranchConten
 };
 
 export type MessageBranchSelectorProps = HTMLAttributes<HTMLDivElement> & {
-  from: UIMessage['role'];
+  from: UIMessageRole;
 };
 
 export const MessageBranchSelector = ({
   className,
-  from,
+  from: _from,
   ...props
 }: MessageBranchSelectorProps) => {
   const { totalBranches } = useMessageBranch();
@@ -225,7 +232,7 @@ export const MessageBranchPrevious = ({ children, ...props }: MessageBranchPrevi
 
 export type MessageBranchNextProps = ComponentProps<typeof Button>;
 
-export const MessageBranchNext = ({ children, className, ...props }: MessageBranchNextProps) => {
+export const MessageBranchNext = ({ children, className: _className, ...props }: MessageBranchNextProps) => {
   const { goToNext, totalBranches } = useMessageBranch();
 
   return (
@@ -258,14 +265,18 @@ export const MessageBranchPage = ({ className, ...props }: MessageBranchPageProp
   );
 };
 
-export type MessageResponseProps = ComponentProps<typeof Streamdown>;
+export type MessageResponseProps = HTMLAttributes<HTMLDivElement> & {
+  children?: ReactNode;
+};
 
 export const MessageResponse = memo(
-  ({ className, ...props }: MessageResponseProps) => (
-    <Streamdown
-      className={cn('size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0', className)}
+  ({ className, children, ...props }: MessageResponseProps) => (
+    <div
+      className={cn('size-full whitespace-pre-wrap leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0', className)}
       {...props}
-    />
+    >
+      {children}
+    </div>
   ),
   (prevProps, nextProps) => prevProps.children === nextProps.children
 );

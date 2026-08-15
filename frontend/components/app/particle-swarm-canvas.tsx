@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
 
 export type AgentUIState = 'ready' | 'connecting' | 'thinking' | 'listening' | 'speaking' | 'ended';
 
@@ -10,8 +9,13 @@ interface ParticleSwarmCanvasProps {
   className?: string;
 }
 
+/**
+ * Lightweight CSS-only particle background that replaces the Three.js version.
+ * Uses a 2D canvas with simple dot particles — saves ~150 MB in bundle size
+ * by eliminating the `three` dependency.
+ */
 export function ParticleSwarmCanvas({ agentState, className }: ParticleSwarmCanvasProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<AgentUIState>(agentState);
 
   useEffect(() => {
@@ -19,186 +23,114 @@ export function ParticleSwarmCanvas({ agentState, className }: ParticleSwarmCanv
   }, [agentState]);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    // Wide, zoomed-out field — never fills the face of the camera
-    const COUNT = 7000;
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x020617, 0.0045);
+    const COUNT = 400;
+    let animationFrameId = 0;
 
-    const camera = new THREE.PerspectiveCamera(
-      42,
-      Math.max(container.clientWidth, 1) / Math.max(container.clientHeight, 1),
-      0.1,
-      5000
-    );
-    // Pull back further so the tunnel reads as atmosphere, not a tunnel wall
-    camera.position.set(0, 0, 280);
-
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: 'high-performance',
-      alpha: true,
-    });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
-
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
-    const target = new THREE.Vector3();
-
-    const geometry = new THREE.TetrahedronGeometry(0.22);
-    const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-
-    const instancedMesh = new THREE.InstancedMesh(geometry, material, COUNT);
-    instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    scene.add(instancedMesh);
-
-    const positions: THREE.Vector3[] = [];
-    for (let i = 0; i < COUNT; i++) {
-      positions.push(
-        new THREE.Vector3(
-          (Math.random() - 0.5) * 130,
-          (Math.random() - 0.5) * 130,
-          (Math.random() - 0.5) * 130
-        )
-      );
-      instancedMesh.setColorAt(i, color.setHex(0x10b981));
+    interface Particle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+      hue: number;
+      alpha: number;
     }
 
-    const clock = new THREE.Clock();
-    let animationFrameId = 0;
-    let rotationY = 0;
-    const goldenRatio = (1.0 + Math.sqrt(5.0)) / 2.0;
+    const particles: Particle[] = [];
+    const resize = () => {
+      canvas.width = canvas.clientWidth * Math.min(window.devicePixelRatio, 2);
+      canvas.height = canvas.clientHeight * Math.min(window.devicePixelRatio, 2);
+    };
+    resize();
+
+    for (let i = 0; i < COUNT; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        size: Math.random() * 2 + 0.5,
+        hue: 155 + Math.random() * 30,
+        alpha: Math.random() * 0.6 + 0.2,
+      });
+    }
+
+    let time = 0;
 
     function animate() {
       animationFrameId = requestAnimationFrame(animate);
+      if (!ctx || !canvas) return;
 
-      const time = clock.getElapsedTime();
-      const currentAppState = stateRef.current;
+      time += 0.016;
+      const state = stateRef.current;
 
-      let speed = 0.14;
-      let chaos = 8.0;
-      let coreSize = 10.0;
-      let hueOffset = 0.48;
-      let rotateSpeed = 0.15;
-
-      if (currentAppState === 'ready') {
-        speed = 0.14;
-        chaos = 8.0;
-        coreSize = 10.0;
-        hueOffset = 0.48;
-        rotateSpeed = 0.12;
-      } else if (currentAppState === 'connecting') {
-        speed = 0.55;
-        chaos = 28.0;
-        coreSize = 5.0;
-        hueOffset = 0.72;
-        rotateSpeed = 0.35;
-      } else if (currentAppState === 'thinking') {
-        speed = 0.4;
-        chaos = 20.0;
-        coreSize = 7.0;
-        hueOffset = 0.58;
-        rotateSpeed = 0.28;
-      } else if (currentAppState === 'listening') {
-        speed = 0.32;
-        chaos = 16.0;
-        coreSize = 8.0;
-        hueOffset = 0.52;
-        rotateSpeed = 0.2;
-      } else if (currentAppState === 'speaking') {
-        speed = 0.7;
-        chaos = 14.0;
-        coreSize = 16.0;
-        hueOffset = 0.12;
-        rotateSpeed = 0.4;
-      } else if (currentAppState === 'ended') {
-        speed = 0.06;
-        chaos = 4.0;
-        coreSize = 14.0;
-        hueOffset = 0.6;
-        rotateSpeed = 0.08;
+      let speed = 1;
+      let baseHue = 155;
+      if (state === 'connecting') {
+        speed = 3;
+        baseHue = 200;
+      } else if (state === 'thinking') {
+        speed = 2;
+        baseHue = 180;
+      } else if (state === 'listening') {
+        speed = 1.5;
+        baseHue = 160;
+      } else if (state === 'speaking') {
+        speed = 4;
+        baseHue = 140;
+      } else if (state === 'ended') {
+        speed = 0.3;
+        baseHue = 170;
       }
 
-      rotationY += rotateSpeed * 0.01;
-      instancedMesh.rotation.y = rotationY;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       for (let i = 0; i < COUNT; i++) {
-        const norm = i / COUNT;
-        const progress = (norm + time * speed * 0.2) % 1.0;
-        const easeProgress = Math.pow(progress, 1.5);
+        const p = particles[i];
+        p.x += p.vx * speed;
+        p.y += p.vy * speed;
 
-        const theta = (2.0 * Math.PI * i) / goldenRatio;
-        const phi = Math.acos(1.0 - 2.0 * norm);
-        const currentRadius = coreSize + 160.0 * (1.0 - easeProgress);
+        // Subtle swirl
+        p.vx += Math.sin(time + i * 0.01) * 0.01;
+        p.vy += Math.cos(time + i * 0.01) * 0.01;
 
-        const instability = Math.pow(1.0 - progress, 2.0);
-        const wobbleX = Math.sin(time * 2.0 + norm * 100.0) * chaos * instability;
-        const wobbleY = Math.cos(time * 1.5 + norm * 200.0) * chaos * instability;
-        const wobbleZ = Math.sin(time * 3.0 - norm * 300.0) * chaos * instability;
+        // Damping
+        p.vx *= 0.99;
+        p.vy *= 0.99;
 
-        const sinPhi = Math.sin(phi);
-        const x = currentRadius * sinPhi * Math.cos(theta) + wobbleX;
-        const y = currentRadius * sinPhi * Math.sin(theta) + wobbleY;
-        const z = currentRadius * Math.cos(phi) + wobbleZ;
+        // Wrap around
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
 
-        target.set(x, y, z);
-
-        const hue = (hueOffset + 0.25 * progress) % 1.0;
-        const saturation = 0.85 + 0.15 * progress;
-        const corePulse = progress > 0.92 ? Math.sin(time * 8.0) * 0.35 : 0.0;
-        const lightness = Math.max(0.1, Math.min(0.9, 0.25 + 0.55 * progress + corePulse));
-
-        color.setHSL(hue, saturation, lightness);
-
-        positions[i].lerp(target, 0.08);
-        dummy.position.copy(positions[i]);
-        dummy.updateMatrix();
-        instancedMesh.setMatrixAt(i, dummy.matrix);
-        instancedMesh.setColorAt(i, color);
+        const hue = baseHue + (p.hue - 155);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${hue}, 80%, 60%, ${p.alpha})`;
+        ctx.fill();
       }
-
-      instancedMesh.instanceMatrix.needsUpdate = true;
-      if (instancedMesh.instanceColor) {
-        instancedMesh.instanceColor.needsUpdate = true;
-      }
-
-      renderer.render(scene, camera);
     }
 
     animate();
-
-    const handleResize = () => {
-      if (!container) return;
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      if (width === 0 || height === 0) return;
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
-    };
-
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', resize);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
-      geometry.dispose();
-      material.dispose();
-      renderer.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
+      window.removeEventListener('resize', resize);
     };
   }, []);
 
   return (
-    <div
-      ref={containerRef}
+    <canvas
+      ref={canvasRef}
       className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${className || ''}`}
+      style={{ width: '100%', height: '100%' }}
     />
   );
 }

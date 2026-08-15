@@ -1,5 +1,7 @@
 packages:
   - 'frontend'
+injectWorkspacePackages: true
 allowBuilds:
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
+  '@tailwindcss/oxide': true
+  sharp: true
+  unrs-resolver: true
